@@ -1,6 +1,5 @@
-// Hero scene: an original stylized 3D developer avatar surrounded by floating
-// Shopify UI panels (storefront, Liquid code, cart). Built from primitives so
-// it needs no model downloads. Lighter on small screens, paused off-screen.
+// Hero scene: Chintan's 3D avatar portrait surrounded by floating Shopify UI
+// panels (storefront, Liquid code, cart), glow rings and particles. Lighter on small screens, paused off-screen.
 import * as THREE from 'three';
 
 const canvas = document.getElementById('hero-canvas');
@@ -33,169 +32,42 @@ function init() {
   const rimR = new THREE.DirectionalLight(0xff8a5c, 1.6); rimR.position.set(4, 0, -2); scene.add(rimR);
   const under = new THREE.PointLight(0xff642d, 7, 9, 2); under.position.set(0, -2.4, 2.6); scene.add(under);
 
-  /* ---------- Materials ---------- */
-  const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...o });
-  const M = {
-    skin: std(0xe6ac86, { roughness: 0.5 }),
-    skinDark: std(0xcd9070, { roughness: 0.55 }),
-    hair: std(0x1b1714, { roughness: 0.5 }),
-    hairHi: std(0x262120, { roughness: 0.42 }),
-    fade: std(0x3a302a, { roughness: 0.9 }),
-    beard: std(0x221b17, { roughness: 0.85 }),
-    iris: std(0x6b4423, { roughness: 0.3 }),
-    mouth: std(0x3b1412, { roughness: 0.6, side: THREE.DoubleSide }),
-    hoodie: std(0x24272e, { roughness: 0.85 }),
-    hoodieDark: std(0x1a1c22, { roughness: 0.9 }),
-    orange: std(0xff642d, { roughness: 0.35, metalness: 0.2 }),
-    dark: std(0x0d0e11, { roughness: 0.4 }),
-    white: std(0xf7f5f0, { roughness: 0.3 }),
-    lip: std(0xb87566, { roughness: 0.5 }),
-    gold: std(0xd9b04a, { roughness: 0.25, metalness: 1 }),
-  };
-  const sphere = new THREE.SphereGeometry(1, 40, 28);
-  const add = (parent, geo, mat, pos = [0, 0, 0], scale = [1, 1, 1], rot = [0, 0, 0]) => {
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(...pos); m.scale.set(...scale); m.rotation.set(...rot);
-    parent.add(m);
-    return m;
-  };
-
-  /* ---------- Avatar ---------- */
+  /* ---------- Avatar: Chintan's 3D avatar portrait ---------- */
+  // The avatar render sits in the scene as a soft-edged card: it tilts toward the
+  // pointer and floats, while the glow, rings and UI panels move around it in 3D.
   const avatar = new THREE.Group();
   scene.add(avatar);
-  const body = new THREE.Group();
-  avatar.add(body);
-
-  const torso = add(body, new THREE.CapsuleGeometry(1, 1, 12, 32), M.hoodie, [0, -2.25, 0], [1.25, 1, 0.78]);
-  add(body, new THREE.TorusGeometry(0.62, 0.2, 20, 48), M.hoodieDark, [0, -1.02, -0.05], [1, 1, 1], [Math.PI / 2 - 0.25, 0, 0]);
-  add(body, new THREE.CylinderGeometry(0.27, 0.3, 0.6, 24), M.skin, [0, -0.85, 0]);
-  for (const x of [-0.16, 0.16]) add(body, new THREE.CylinderGeometry(0.022, 0.022, 0.5, 8), M.white, [x, -1.5, 0.76], [1, 1, 1], [0.15, 0, 0]);
-
-  // headphones resting around the neck (gap at the front)
-  const phones = new THREE.Group();
-  phones.position.y = -1.12;
-  body.add(phones);
-  add(phones, new THREE.TorusGeometry(0.68, 0.06, 14, 64, Math.PI * 1.3), M.orange, [0, 0, 0], [1, 1, 1], [Math.PI / 2, 0, -1.15 * Math.PI]);
-  for (const s of [-1, 1]) {
-    const cup = add(phones, new THREE.CylinderGeometry(0.2, 0.2, 0.14, 28), M.dark, [0.6 * s, 0, 0.32], [1, 1, 1], [0, 0, Math.PI / 2]);
-    cup.rotation.y = -0.5 * s;
-    add(phones, new THREE.TorusGeometry(0.2, 0.035, 10, 32), M.orange, [0.6 * s + 0.07 * s, 0, 0.32 + 0.04], [1, 1, 1], [0, Math.PI / 2 - 0.5 * s, 0]);
-  }
-
-  // Code Runners mark on the chest
-  new THREE.TextureLoader().load('assets/cr-logo.png', (tex) => {
+  const AV_H = 3.9, AV_W = AV_H * (310 / 387);   // keep the image's aspect ratio
+  const radial = (w, h, stops, sy = 1) => {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    g.translate(w / 2, h / 2); g.scale(1, sy);
+    const grad = g.createRadialGradient(0, 0, 0, 0, 0, w / 2);
+    stops.forEach(([o, col]) => grad.addColorStop(o, col));
+    g.fillStyle = grad; g.fillRect(-w, -h, w * 2, h * 2);
+    return new THREE.CanvasTexture(c);
+  };
+  // soft oval fade so the cropped hair and shoulders melt into the dark hero
+  const fadeMask = radial(256, 320, [[0, '#fff'], [0.6, '#fff'], [1, '#000']], 1.25);
+  // warm glow behind the portrait
+  const haloTex = radial(256, 256, [[0, 'rgba(255,100,45,.55)'], [0.45, 'rgba(255,100,45,.18)'], [1, 'rgba(255,100,45,0)']]);
+  haloTex.colorSpace = THREE.SRGBColorSpace;
+  const halo = new THREE.Mesh(new THREE.PlaneGeometry(AV_W * 1.9, AV_W * 1.9), new THREE.MeshBasicMaterial({ map: haloTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+  halo.position.set(0, -0.2, -0.6);
+  avatar.add(halo);
+  const portraitMat = new THREE.MeshBasicMaterial({ alphaMap: fadeMask, transparent: true, depthWrite: false, toneMapped: false, opacity: 0 });
+  const portraitCard = new THREE.Mesh(new THREE.PlaneGeometry(AV_W, AV_H), portraitMat);
+  portraitCard.position.y = -0.35;
+  avatar.add(portraitCard);
+  new THREE.TextureLoader().load('assets/avatar.png', (tex) => {
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 4;
-    add(body, new THREE.PlaneGeometry(0.42, 0.42), new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.6 }), [0.46, -1.78, 0.745], [1, 1, 1], [0, 0.32, 0]);
+    portraitMat.map = tex;
+    portraitMat.opacity = 1;
+    portraitMat.needsUpdate = true;
     if (reduce) renderer.render(scene, camera);
   });
-
-  // head — modelled on Chintan's avatar reference: swept-back volume hair with
-  // tight faded sides, thick straight brows, calm brown eyes, trimmed full beard
-  // with a clean cheek line, moustache + chin patch, closed neutral mouth, stud earring
-  const head = new THREE.Group();
-  head.position.y = 0.35;
-  avatar.add(head);
-  const HX = 0.8, HY = 0.97, HZ = 0.84;
-  add(head, sphere, M.skin, [0, 0, 0], [HX, HY, HZ]);
-  // slightly squarer jaw under the beard
-  add(head, sphere, M.skin, [0, -0.42, 0.06], [0.66, 0.46, 0.68]);
-  for (const s of [-1, 1]) {
-    add(head, sphere, M.skin, [0.79 * s, -0.02, -0.04], [0.12, 0.21, 0.1]);
-    add(head, sphere, M.skinDark, [0.82 * s, -0.02, -0.02], [0.055, 0.12, 0.05]);
-  }
-  // small gold stud on the viewer-right ear lobe
-  add(head, sphere, M.gold, [0.86, -0.17, 0.0], [0.028, 0.028, 0.028]);
-
-  // tight fade on the sides and back (dark, close to the head)
-  add(head, new THREE.SphereGeometry(1, 48, 24, Math.PI / 2 + 0.9, Math.PI * 2 - 1.8, Math.PI * 0.26, Math.PI * 0.27), M.fade, [0, 0.02, -0.01], [HX + 0.012, HY + 0.01, HZ + 0.012], [-0.12, 0, 0]);
-  // hair mass: a dome that sits high and juts forward over the forehead (the quiff)
-  const HC = new THREE.Vector3(0, 0.56, -0.04), HR = new THREE.Vector3(0.79, 0.7, 0.97);
-  const dome = add(head, new THREE.SphereGeometry(1, 56, 28, 0, Math.PI * 2, 0, Math.PI * 0.5), M.hair, HC.toArray(), HR.toArray(), [-0.2, 0, 0]);
-  // combed strands lying on the dome: rise up off the front, then sweep back and slightly to one side
-  let seed = 11;
-  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  const strandGeo = new THREE.CapsuleGeometry(0.075, 0.62, 6, 12);
-  const comb = new THREE.Vector3(0.25, -0.1, -1);
-  const tilt = new THREE.Quaternion().setFromEuler(dome.rotation);
-  const bx = new THREE.Vector3(), basis = new THREE.Matrix4();
-  for (let i = 0; i < 64; i++) {
-    const th = Math.acos(1 - rand() * 0.9);                    // polar angle from the top, biased up
-    const ph = rand() * Math.PI * 2;
-    const u = new THREE.Vector3(Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph));
-    if (u.y < 0.18 && u.z < 0.35) continue;                    // keep strands off the faded sides
-    const p = u.clone().multiply(HR).applyQuaternion(tilt).add(HC);
-    const n = u.clone().divide(HR).normalize().applyQuaternion(tilt);
-    const dir = comb.clone().addScaledVector(n, -comb.dot(n)).normalize();
-    bx.crossVectors(dir, n).normalize();
-    basis.makeBasis(bx, dir, n);
-    const m = new THREE.Mesh(strandGeo, i % 5 ? M.hair : M.hairHi);
-    m.quaternion.setFromRotationMatrix(basis);
-    m.position.copy(p).addScaledVector(n, 0.005);
-    m.scale.set(1 + rand() * 0.45, 0.8 + rand() * 0.4, 0.32);
-    head.add(m);
-  }
-
-  // eyes: almond whites, brown iris, lids resting a little low (calm look)
-  const eyes = new THREE.Group();
-  head.add(eyes);
-  const pupils = [];
-  for (const s of [-1, 1]) {
-    const x = 0.27 * s, y = 0.06;
-    add(eyes, sphere, M.white, [x, y, 0.775], [0.13, 0.085, 0.06]);
-    const iris = new THREE.Group();
-    iris.position.set(x, y - 0.005, 0);
-    iris.userData = { x, y: y - 0.005 };
-    add(iris, sphere, M.iris, [0, 0, 0.815], [0.066, 0.066, 0.03]);
-    add(iris, sphere, M.dark, [0, 0, 0.836], [0.032, 0.032, 0.015]);
-    add(iris, sphere, M.white, [0.022, 0.024, 0.85], [0.014, 0.014, 0.008]);
-    eyes.add(iris);
-    pupils.push(iris);
-    // upper lid + crease
-    add(eyes, new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.4), M.skin, [x, y + 0.012, 0.775], [0.138, 0.094, 0.068], [0.5, 0, 0]);
-    add(eyes, new THREE.TorusGeometry(0.12, 0.009, 8, 24, Math.PI * 0.8), M.skinDark, [x, y + 0.03, 0.81], [1, 0.55, 1], [0.35, 0, Math.PI * 0.1]);
-    // thick, straight brows: low inner end, slight lift toward the tail
-    add(head, new THREE.CapsuleGeometry(0.042, 0.2, 4, 10), M.hair, [x + 0.01 * s, 0.205, 0.8], [1, 1, 0.55], [0.2, -0.25 * s, Math.PI / 2 - 0.1 * s]);
-  }
-
-  // nose: straight bridge, rounded tip, soft nostrils
-  add(head, new THREE.CapsuleGeometry(0.055, 0.16, 4, 12), M.skin, [0, -0.01, 0.84], [1, 1, 0.9], [0.18, 0, 0]);
-  add(head, sphere, M.skin, [0, -0.13, 0.885], [0.085, 0.07, 0.075]);
-  for (const s of [-1, 1]) add(head, sphere, M.skinDark, [0.065 * s, -0.155, 0.85], [0.04, 0.03, 0.035]);
-
-  // closed, neutral mouth (lower lip; the moustache covers the upper lip)
-  add(head, sphere, M.lip, [0, -0.335, 0.85], [0.115, 0.032, 0.045]);
-
-  // trimmed full beard. One shell over the lower face and sides, trimmed by two
-  // head-local planes into a clean diagonal cheek line: high at the sideburns,
-  // down to the mouth corners (an inverted V; the shell is kept below EITHER line).
-  const CHEEK = { ear: [0.8, -0.02], corner: [0.2, -0.3] };
-  const slope = (CHEEK.ear[1] - CHEEK.corner[1]) / (CHEEK.ear[0] - CHEEK.corner[0]);  // rise per unit toward the ear (> 0)
-  const yAt0 = CHEEK.ear[1] - slope * CHEEK.ear[0];                                     // where each line meets x = 0 (< mouth)
-  // Plane keeps points with normal·p + constant >= 0
-  const beardPlanesLocal = [
-    new THREE.Plane(new THREE.Vector3(-slope, -1, 0), yAt0).normalize(),  // left side:  keep y <= yAt0 - slope * x
-    new THREE.Plane(new THREE.Vector3(slope, -1, 0), yAt0).normalize(),   // right side: keep y <= yAt0 + slope * x
-  ];
-  const beardPlanes = beardPlanesLocal.map((p) => p.clone());
-  renderer.localClippingEnabled = true;
-  const beardCut = M.beard.clone();
-  beardCut.clippingPlanes = beardPlanes;
-  beardCut.clipIntersection = true;  // clip only where outside both planes
-  add(head, new THREE.SphereGeometry(1, 64, 32, -0.12, Math.PI + 0.24, Math.PI * 0.42, Math.PI * 0.56), beardCut, [0, -0.02, 0.0], [HX + 0.035, HY + 0.03, HZ + 0.05], [0.08, 0, 0]);
-  add(head, sphere, beardCut, [0, -0.78, 0.4], [0.38, 0.2, 0.3]);       // chin fullness
-  for (const s of [-1, 1]) add(head, sphere, M.beard, [0.775 * s, 0.03, -0.08], [0.05, 0.2, 0.1]);  // sideburns up to the fade
-  // keep the cut planes glued to the head as it turns
-  const syncBeard = () => {
-    head.updateWorldMatrix(true, false);
-    beardPlanes.forEach((p, i) => p.copy(beardPlanesLocal[i]).applyMatrix4(head.matrixWorld));
-  };
-  // moustache: one continuous bar over the upper lip, ends drooping into the beard
-  add(head, new THREE.CapsuleGeometry(0.048, 0.2, 4, 12), M.beard, [0, -0.255, 0.87], [1, 1, 0.7], [0.2, 0, Math.PI / 2]);
-  for (const s of [-1, 1]) add(head, sphere, M.beard, [0.15 * s, -0.29, 0.835], [0.06, 0.06, 0.05], [0, 0, 0.5 * s]);
-
-  // chin patch under the lower lip
-  add(head, sphere, M.beard, [0, -0.43, 0.855], [0.07, 0.05, 0.05]);
 
   /* ---------- Floating UI panels ---------- */
   const panel = (draw, w = 512, h = 340) => {
@@ -324,14 +196,9 @@ function init() {
     const target = Math.min(1, Math.max(0, scrollY / hero.offsetHeight));
     sp += (target - sp) * 0.1;
 
-    head.rotation.set(my * 0.22, mx * 0.5, -mx * 0.05);
-    body.rotation.y = mx * 0.16;
-    pupils.forEach((p) => { p.position.x = p.userData.x + mx * 0.025; p.position.y = p.userData.y - my * 0.018; });
-    const blink = t % 4.3 < 0.12 ? 0.12 : 1;
-    eyes.scale.y += (blink - eyes.scale.y) * 0.5;
-    torso.scale.y = 1 + Math.sin(t * 1.6) * 0.012;
-    avatar.position.y = avatar.userData.y + Math.sin(t * 1.1) * 0.035 + sp * 0.9;
-    avatar.rotation.y = sp * 0.6;
+    avatar.position.y = avatar.userData.y + Math.sin(t * 1.1) * 0.05 + sp * 0.9;
+    avatar.rotation.set(my * 0.12, mx * 0.3 + sp * 0.6, 0);
+    halo.material.opacity = 0.85 + Math.sin(t * 1.6) * 0.15;
 
     panels.forEach((m, i) => {
       const b = m.userData.base;
@@ -344,7 +211,6 @@ function init() {
     rings[1].rotation.z = -t * 0.08;
     particles.rotation.y = t * 0.03;
     camera.position.z = baseZ + sp * 2;
-    syncBeard();
     renderer.render(scene, camera);
   };
 
