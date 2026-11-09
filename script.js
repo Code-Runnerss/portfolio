@@ -111,14 +111,26 @@
       el.style.transitionDelay = `${Math.min(i, 6) * 80}ms`;
       groups.set(el.parentElement, i + 1);
     });
-    const io = new IntersectionObserver((entries) => entries.forEach((en) => {
-      if (!en.isIntersecting) return;
-      en.target.classList.add('visible');
-      en.target.querySelectorAll('.count').forEach(countUp);
-      setTimeout(() => { en.target.style.transitionDelay = ''; }, 1500);
-      io.unobserve(en.target);
-    }), { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    const pending = new Set(items);
+    const reveal = (el) => {
+      if (!pending.delete(el)) return;
+      el.classList.add('visible');
+      el.querySelectorAll('.count').forEach(countUp);
+      setTimeout(() => { el.style.transitionDelay = ''; }, 1500);
+      io.unobserve(el);
+    };
+    const io = new IntersectionObserver((entries) => entries.forEach((en) => { if (en.isIntersecting) reveal(en.target); }), { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
     items.forEach((el) => io.observe(el));
+    // backstop: a fast fling can skip an element past the viewport between observer checks
+    let ticking = false;
+    addEventListener('scroll', () => {
+      if (ticking || !pending.size) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        ticking = false;
+        pending.forEach((el) => { if (el.getBoundingClientRect().top < innerHeight * 0.92) reveal(el); });
+      });
+    }, { passive: true });
   }
 
   /* ---------- About statement: word-by-word highlight ---------- */

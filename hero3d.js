@@ -36,16 +36,20 @@ function init() {
   /* ---------- Materials ---------- */
   const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...o });
   const M = {
-    skin: std(0xd29a72, { roughness: 0.5 }),
-    skinDark: std(0xb5774f, { roughness: 0.55 }),
-    hair: std(0x15110e, { roughness: 0.75 }),
+    skin: std(0xedb48c, { roughness: 0.5 }),
+    skinDark: std(0xd99c78, { roughness: 0.55 }),
+    hair: std(0x1a1715, { roughness: 0.55 }),
+    hairHi: std(0x2a2522, { roughness: 0.45 }),
+    fade: std(0x6e5b4f, { roughness: 0.9 }),
+    beard: std(0x231d19, { roughness: 0.85 }),
+    iris: std(0x6b4423, { roughness: 0.3 }),
+    mouth: std(0x3b1412, { roughness: 0.6, side: THREE.DoubleSide }),
     hoodie: std(0x24272e, { roughness: 0.85 }),
     hoodieDark: std(0x1a1c22, { roughness: 0.9 }),
     orange: std(0xff642d, { roughness: 0.35, metalness: 0.2 }),
     dark: std(0x0d0e11, { roughness: 0.4 }),
     white: std(0xf7f5f0, { roughness: 0.3 }),
-    frame: std(0x101114, { roughness: 0.3, metalness: 0.6 }),
-    lip: std(0x6b2a1f, { roughness: 0.5 }),
+    lip: std(0xc77d6c, { roughness: 0.5 }),
   };
   const sphere = new THREE.SphereGeometry(1, 40, 28);
   const add = (parent, geo, mat, pos = [0, 0, 0], scale = [1, 1, 1], rot = [0, 0, 0]) => {
@@ -85,34 +89,73 @@ function init() {
     if (reduce) renderer.render(scene, camera);
   });
 
-  // head
+  // head — Memoji-style: twisted hair with faded sides, full beard, big grin
   const head = new THREE.Group();
   head.position.y = 0.35;
   avatar.add(head);
-  add(head, sphere, M.skin, [0, 0, 0], [0.82, 0.95, 0.84]);
-  for (const s of [-1, 1]) add(head, sphere, M.skin, [0.79 * s, -0.02, -0.02], [0.13, 0.22, 0.1]);
-  add(head, new THREE.SphereGeometry(1, 48, 32, 0, Math.PI * 2, 0, Math.PI * 0.55), M.hair, [0, 0.08, -0.06], [0.88, 0.97, 0.9], [-0.58, 0, 0]);
-  add(head, sphere, M.hair, [0.12, 0.8, 0.36], [0.56, 0.26, 0.42], [0.25, 0, -0.2]);
-  add(head, sphere, M.hair, [-0.3, 0.74, 0.4], [0.4, 0.2, 0.34], [0.3, 0, 0.3]);
+  const HX = 0.82, HY = 0.95, HZ = 0.84;
+  add(head, sphere, M.skin, [0, 0, 0], [HX, HY, HZ]);
+  for (const s of [-1, 1]) {
+    add(head, sphere, M.skin, [0.8 * s, -0.02, -0.02], [0.13, 0.22, 0.11]);
+    add(head, sphere, M.skinDark, [0.83 * s, -0.02, 0.0], [0.06, 0.12, 0.05]);
+  }
 
+  // faded sides + back (sides/back only, so the forehead stays clear)
+  add(head, new THREE.SphereGeometry(1, 48, 24, Math.PI / 2 + 0.95, Math.PI * 2 - 1.9, Math.PI * 0.3, Math.PI * 0.24), M.fade, [0, 0.02, -0.01], [HX + 0.012, HY + 0.01, HZ + 0.012], [-0.15, 0, 0]);
+  // dense crown
+  add(head, new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, 0, Math.PI * 0.34), M.hair, [0, 0.03, -0.02], [HX + 0.02, HY + 0.02, HZ + 0.02], [-0.18, 0, 0]);
+  // twists — short rope-like locks sweeping up and to one side
+  let seed = 7;
+  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const twistGeo = new THREE.CapsuleGeometry(0.066, 0.2, 4, 10);
+  const up = new THREE.Vector3(0, 1, 0);
+  for (let i = 0; i < 96; i++) {
+    const th = Math.acos(1 - rand() * 0.58);
+    const ph = rand() * Math.PI * 2;
+    const n = new THREE.Vector3(Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph));
+    n.applyAxisAngle(new THREE.Vector3(1, 0, 0), -0.18);
+    const surf = n.clone().multiply(new THREE.Vector3(HX, HY, HZ));
+    const front = Math.max(0, n.z);
+    const dir = n.clone().multiplyScalar(0.42).add(new THREE.Vector3(0.55 + front * 0.2, 0.18, -0.25 + front * 0.55)).normalize();
+    const m = new THREE.Mesh(twistGeo, i % 3 ? M.hair : M.hairHi);
+    m.quaternion.setFromUnitVectors(up, dir);
+    m.position.copy(surf).addScaledVector(n, 0.03).addScaledVector(dir, 0.07);
+    m.scale.setScalar(0.8 + rand() * 0.4);
+    head.add(m);
+  }
+
+  // eyes: big whites, brown iris, relaxed lids
   const eyes = new THREE.Group();
   head.add(eyes);
   const pupils = [];
   for (const s of [-1, 1]) {
-    const x = 0.29 * s;
-    add(eyes, sphere, M.white, [x, 0.02, 0.79], [0.13, 0.13, 0.06]);
-    const p = add(eyes, sphere, M.dark, [x, 0.02, 0.835], [0.068, 0.068, 0.035]);
-    p.userData.x = x;
-    pupils.push(p);
-    add(eyes, sphere, M.white, [x + 0.025, 0.05, 0.868], [0.018, 0.018, 0.01]);
-    add(head, new THREE.BoxGeometry(0.27, 0.055, 0.06), M.hair, [x, 0.25, 0.78], [1, 1, 1], [0.1, 0, -0.1 * s]);
-    // glasses
-    add(head, new THREE.TorusGeometry(0.18, 0.022, 12, 40), M.frame, [x, 0.02, 0.9]);
-    add(head, new THREE.BoxGeometry(0.02, 0.025, 0.62), M.frame, [0.47 * s, 0.05, 0.6], [1, 1, 1], [0, -0.28 * s, 0]);
+    const x = 0.28 * s, y = 0.07;
+    add(eyes, sphere, M.white, [x, y, 0.79], [0.15, 0.14, 0.07]);
+    const iris = new THREE.Group();
+    iris.position.set(x, y - 0.01, 0);
+    iris.userData = { x, y: y - 0.01 };
+    add(iris, sphere, M.iris, [0, 0, 0.838], [0.092, 0.092, 0.035]);
+    add(iris, sphere, M.dark, [0, 0, 0.862], [0.045, 0.045, 0.02]);
+    add(iris, sphere, M.white, [0.03, 0.035, 0.88], [0.02, 0.02, 0.01]);
+    eyes.add(iris);
+    pupils.push(iris);
+    add(eyes, new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.34), M.skin, [x, y + 0.01, 0.79], [0.158, 0.15, 0.085], [0.62, 0, 0]);
+    // thick, slightly arched brows
+    add(head, new THREE.TorusGeometry(0.15, 0.036, 10, 24, Math.PI * 0.62), M.hair, [x, 0.21, 0.79], [1, 0.75, 1], [0.15, 0, Math.PI * 0.19 + (s > 0 ? -0.08 : 0.08)]);
   }
-  add(head, new THREE.CylinderGeometry(0.018, 0.018, 0.22, 8), M.frame, [0, 0.05, 0.92], [1, 1, 1], [0, 0, Math.PI / 2]);
-  add(head, sphere, M.skinDark, [0, -0.13, 0.84], [0.1, 0.13, 0.12]);
-  add(head, new THREE.TorusGeometry(0.17, 0.028, 12, 32, Math.PI), M.lip, [0, -0.37, 0.77], [1, 1, 1], [0.15, 0, Math.PI]);
+
+  add(head, sphere, M.skinDark, [0, -0.1, 0.85], [0.12, 0.11, 0.12]);
+
+  // full beard: front shell + sideburns, connected under the jaw
+  add(head, new THREE.SphereGeometry(1, 56, 28, 0.05, Math.PI - 0.1, Math.PI * 0.555, Math.PI * 0.42), M.beard, [0, -0.04, 0.0], [HX + 0.03, HY + 0.025, HZ + 0.04], [0.16, 0, 0]);
+  for (const s of [-1, 1]) add(head, sphere, M.beard, [0.76 * s, -0.08, 0.05], [0.08, 0.22, 0.2], [0, 0, 0.12 * s]);
+  // mustache
+  for (const s of [-1, 1]) add(head, sphere, M.beard, [0.12 * s, -0.235, 0.86], [0.17, 0.06, 0.07], [0, 0, 0.28 * s]);
+
+  // wide grin with teeth
+  add(head, new THREE.CircleGeometry(1, 32, Math.PI, Math.PI), M.mouth, [0, -0.3, 0.905], [0.25, 0.15, 1], [-0.25, 0, 0]);
+  add(head, new THREE.BoxGeometry(0.4, 0.065, 0.02), M.white, [0, -0.33, 0.915], [1, 1, 1], [-0.25, 0, 0]);
+  add(head, new THREE.TorusGeometry(0.25, 0.026, 10, 32, Math.PI), M.lip, [0, -0.3, 0.9], [1, 0.6, 1], [-0.25, 0, Math.PI]);
 
   /* ---------- Floating UI panels ---------- */
   const panel = (draw, w = 512, h = 340) => {
@@ -243,7 +286,7 @@ function init() {
 
     head.rotation.set(my * 0.22, mx * 0.5, -mx * 0.05);
     body.rotation.y = mx * 0.16;
-    pupils.forEach((p) => { p.position.x = p.userData.x + mx * 0.03; p.position.y = 0.02 - my * 0.02; });
+    pupils.forEach((p) => { p.position.x = p.userData.x + mx * 0.025; p.position.y = p.userData.y - my * 0.018; });
     const blink = t % 4.3 < 0.12 ? 0.12 : 1;
     eyes.scale.y += (blink - eyes.scale.y) * 0.5;
     torso.scale.y = 1 + Math.sin(t * 1.6) * 0.012;
