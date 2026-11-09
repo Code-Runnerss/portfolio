@@ -36,12 +36,12 @@ function init() {
   /* ---------- Materials ---------- */
   const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...o });
   const M = {
-    skin: std(0xedb48c, { roughness: 0.5 }),
-    skinDark: std(0xd99c78, { roughness: 0.55 }),
-    hair: std(0x1a1715, { roughness: 0.55 }),
-    hairHi: std(0x2a2522, { roughness: 0.45 }),
-    fade: std(0x6e5b4f, { roughness: 0.9 }),
-    beard: std(0x231d19, { roughness: 0.85 }),
+    skin: std(0xe6ac86, { roughness: 0.5 }),
+    skinDark: std(0xcd9070, { roughness: 0.55 }),
+    hair: std(0x1b1714, { roughness: 0.5 }),
+    hairHi: std(0x262120, { roughness: 0.42 }),
+    fade: std(0x3a302a, { roughness: 0.9 }),
+    beard: std(0x221b17, { roughness: 0.85 }),
     iris: std(0x6b4423, { roughness: 0.3 }),
     mouth: std(0x3b1412, { roughness: 0.6, side: THREE.DoubleSide }),
     hoodie: std(0x24272e, { roughness: 0.85 }),
@@ -49,7 +49,8 @@ function init() {
     orange: std(0xff642d, { roughness: 0.35, metalness: 0.2 }),
     dark: std(0x0d0e11, { roughness: 0.4 }),
     white: std(0xf7f5f0, { roughness: 0.3 }),
-    lip: std(0xc77d6c, { roughness: 0.5 }),
+    lip: std(0xb87566, { roughness: 0.5 }),
+    gold: std(0xd9b04a, { roughness: 0.25, metalness: 1 }),
   };
   const sphere = new THREE.SphereGeometry(1, 40, 28);
   const add = (parent, geo, mat, pos = [0, 0, 0], scale = [1, 1, 1], rot = [0, 0, 0]) => {
@@ -89,73 +90,112 @@ function init() {
     if (reduce) renderer.render(scene, camera);
   });
 
-  // head — Memoji-style: twisted hair with faded sides, full beard, big grin
+  // head — modelled on Chintan's avatar reference: swept-back volume hair with
+  // tight faded sides, thick straight brows, calm brown eyes, trimmed full beard
+  // with a clean cheek line, moustache + chin patch, closed neutral mouth, stud earring
   const head = new THREE.Group();
   head.position.y = 0.35;
   avatar.add(head);
-  const HX = 0.82, HY = 0.95, HZ = 0.84;
+  const HX = 0.8, HY = 0.97, HZ = 0.84;
   add(head, sphere, M.skin, [0, 0, 0], [HX, HY, HZ]);
+  // slightly squarer jaw under the beard
+  add(head, sphere, M.skin, [0, -0.42, 0.06], [0.66, 0.46, 0.68]);
   for (const s of [-1, 1]) {
-    add(head, sphere, M.skin, [0.8 * s, -0.02, -0.02], [0.13, 0.22, 0.11]);
-    add(head, sphere, M.skinDark, [0.83 * s, -0.02, 0.0], [0.06, 0.12, 0.05]);
+    add(head, sphere, M.skin, [0.79 * s, -0.02, -0.04], [0.12, 0.21, 0.1]);
+    add(head, sphere, M.skinDark, [0.82 * s, -0.02, -0.02], [0.055, 0.12, 0.05]);
   }
+  // small gold stud on the viewer-right ear lobe
+  add(head, sphere, M.gold, [0.86, -0.17, 0.0], [0.028, 0.028, 0.028]);
 
-  // faded sides + back (sides/back only, so the forehead stays clear)
-  add(head, new THREE.SphereGeometry(1, 48, 24, Math.PI / 2 + 0.95, Math.PI * 2 - 1.9, Math.PI * 0.3, Math.PI * 0.24), M.fade, [0, 0.02, -0.01], [HX + 0.012, HY + 0.01, HZ + 0.012], [-0.15, 0, 0]);
-  // dense crown
-  add(head, new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, 0, Math.PI * 0.34), M.hair, [0, 0.03, -0.02], [HX + 0.02, HY + 0.02, HZ + 0.02], [-0.18, 0, 0]);
-  // twists — short rope-like locks sweeping up and to one side
-  let seed = 7;
+  // tight fade on the sides and back (dark, close to the head)
+  add(head, new THREE.SphereGeometry(1, 48, 24, Math.PI / 2 + 0.9, Math.PI * 2 - 1.8, Math.PI * 0.26, Math.PI * 0.27), M.fade, [0, 0.02, -0.01], [HX + 0.012, HY + 0.01, HZ + 0.012], [-0.12, 0, 0]);
+  // hair mass: a dome that sits high and juts forward over the forehead (the quiff)
+  const HC = new THREE.Vector3(0, 0.56, -0.04), HR = new THREE.Vector3(0.79, 0.7, 0.97);
+  const dome = add(head, new THREE.SphereGeometry(1, 56, 28, 0, Math.PI * 2, 0, Math.PI * 0.5), M.hair, HC.toArray(), HR.toArray(), [-0.2, 0, 0]);
+  // combed strands lying on the dome: rise up off the front, then sweep back and slightly to one side
+  let seed = 11;
   const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  const twistGeo = new THREE.CapsuleGeometry(0.066, 0.2, 4, 10);
-  const up = new THREE.Vector3(0, 1, 0);
-  for (let i = 0; i < 96; i++) {
-    const th = Math.acos(1 - rand() * 0.58);
+  const strandGeo = new THREE.CapsuleGeometry(0.075, 0.62, 6, 12);
+  const comb = new THREE.Vector3(0.25, -0.1, -1);
+  const tilt = new THREE.Quaternion().setFromEuler(dome.rotation);
+  const bx = new THREE.Vector3(), basis = new THREE.Matrix4();
+  for (let i = 0; i < 64; i++) {
+    const th = Math.acos(1 - rand() * 0.9);                    // polar angle from the top, biased up
     const ph = rand() * Math.PI * 2;
-    const n = new THREE.Vector3(Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph));
-    n.applyAxisAngle(new THREE.Vector3(1, 0, 0), -0.18);
-    const surf = n.clone().multiply(new THREE.Vector3(HX, HY, HZ));
-    const front = Math.max(0, n.z);
-    const dir = n.clone().multiplyScalar(0.42).add(new THREE.Vector3(0.55 + front * 0.2, 0.18, -0.25 + front * 0.55)).normalize();
-    const m = new THREE.Mesh(twistGeo, i % 3 ? M.hair : M.hairHi);
-    m.quaternion.setFromUnitVectors(up, dir);
-    m.position.copy(surf).addScaledVector(n, 0.03).addScaledVector(dir, 0.07);
-    m.scale.setScalar(0.8 + rand() * 0.4);
+    const u = new THREE.Vector3(Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph));
+    if (u.y < 0.18 && u.z < 0.35) continue;                    // keep strands off the faded sides
+    const p = u.clone().multiply(HR).applyQuaternion(tilt).add(HC);
+    const n = u.clone().divide(HR).normalize().applyQuaternion(tilt);
+    const dir = comb.clone().addScaledVector(n, -comb.dot(n)).normalize();
+    bx.crossVectors(dir, n).normalize();
+    basis.makeBasis(bx, dir, n);
+    const m = new THREE.Mesh(strandGeo, i % 5 ? M.hair : M.hairHi);
+    m.quaternion.setFromRotationMatrix(basis);
+    m.position.copy(p).addScaledVector(n, 0.005);
+    m.scale.set(1 + rand() * 0.45, 0.8 + rand() * 0.4, 0.32);
     head.add(m);
   }
 
-  // eyes: big whites, brown iris, relaxed lids
+  // eyes: almond whites, brown iris, lids resting a little low (calm look)
   const eyes = new THREE.Group();
   head.add(eyes);
   const pupils = [];
   for (const s of [-1, 1]) {
-    const x = 0.28 * s, y = 0.07;
-    add(eyes, sphere, M.white, [x, y, 0.79], [0.15, 0.14, 0.07]);
+    const x = 0.27 * s, y = 0.06;
+    add(eyes, sphere, M.white, [x, y, 0.775], [0.13, 0.085, 0.06]);
     const iris = new THREE.Group();
-    iris.position.set(x, y - 0.01, 0);
-    iris.userData = { x, y: y - 0.01 };
-    add(iris, sphere, M.iris, [0, 0, 0.838], [0.092, 0.092, 0.035]);
-    add(iris, sphere, M.dark, [0, 0, 0.862], [0.045, 0.045, 0.02]);
-    add(iris, sphere, M.white, [0.03, 0.035, 0.88], [0.02, 0.02, 0.01]);
+    iris.position.set(x, y - 0.005, 0);
+    iris.userData = { x, y: y - 0.005 };
+    add(iris, sphere, M.iris, [0, 0, 0.815], [0.066, 0.066, 0.03]);
+    add(iris, sphere, M.dark, [0, 0, 0.836], [0.032, 0.032, 0.015]);
+    add(iris, sphere, M.white, [0.022, 0.024, 0.85], [0.014, 0.014, 0.008]);
     eyes.add(iris);
     pupils.push(iris);
-    add(eyes, new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.34), M.skin, [x, y + 0.01, 0.79], [0.158, 0.15, 0.085], [0.62, 0, 0]);
-    // thick, slightly arched brows
-    add(head, new THREE.TorusGeometry(0.15, 0.036, 10, 24, Math.PI * 0.62), M.hair, [x, 0.21, 0.79], [1, 0.75, 1], [0.15, 0, Math.PI * 0.19 + (s > 0 ? -0.08 : 0.08)]);
+    // upper lid + crease
+    add(eyes, new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.4), M.skin, [x, y + 0.012, 0.775], [0.138, 0.094, 0.068], [0.5, 0, 0]);
+    add(eyes, new THREE.TorusGeometry(0.12, 0.009, 8, 24, Math.PI * 0.8), M.skinDark, [x, y + 0.03, 0.81], [1, 0.55, 1], [0.35, 0, Math.PI * 0.1]);
+    // thick, straight brows: low inner end, slight lift toward the tail
+    add(head, new THREE.CapsuleGeometry(0.042, 0.2, 4, 10), M.hair, [x + 0.01 * s, 0.205, 0.8], [1, 1, 0.55], [0.2, -0.25 * s, Math.PI / 2 - 0.1 * s]);
   }
 
-  add(head, sphere, M.skinDark, [0, -0.1, 0.85], [0.12, 0.11, 0.12]);
+  // nose: straight bridge, rounded tip, soft nostrils
+  add(head, new THREE.CapsuleGeometry(0.055, 0.16, 4, 12), M.skin, [0, -0.01, 0.84], [1, 1, 0.9], [0.18, 0, 0]);
+  add(head, sphere, M.skin, [0, -0.13, 0.885], [0.085, 0.07, 0.075]);
+  for (const s of [-1, 1]) add(head, sphere, M.skinDark, [0.065 * s, -0.155, 0.85], [0.04, 0.03, 0.035]);
 
-  // full beard: front shell + sideburns, connected under the jaw
-  add(head, new THREE.SphereGeometry(1, 56, 28, 0.05, Math.PI - 0.1, Math.PI * 0.555, Math.PI * 0.42), M.beard, [0, -0.04, 0.0], [HX + 0.03, HY + 0.025, HZ + 0.04], [0.16, 0, 0]);
-  for (const s of [-1, 1]) add(head, sphere, M.beard, [0.76 * s, -0.08, 0.05], [0.08, 0.22, 0.2], [0, 0, 0.12 * s]);
-  // mustache
-  for (const s of [-1, 1]) add(head, sphere, M.beard, [0.12 * s, -0.235, 0.86], [0.17, 0.06, 0.07], [0, 0, 0.28 * s]);
+  // closed, neutral mouth (lower lip; the moustache covers the upper lip)
+  add(head, sphere, M.lip, [0, -0.335, 0.85], [0.115, 0.032, 0.045]);
 
-  // wide grin with teeth
-  add(head, new THREE.CircleGeometry(1, 32, Math.PI, Math.PI), M.mouth, [0, -0.3, 0.905], [0.25, 0.15, 1], [-0.25, 0, 0]);
-  add(head, new THREE.BoxGeometry(0.4, 0.065, 0.02), M.white, [0, -0.33, 0.915], [1, 1, 1], [-0.25, 0, 0]);
-  add(head, new THREE.TorusGeometry(0.25, 0.026, 10, 32, Math.PI), M.lip, [0, -0.3, 0.9], [1, 0.6, 1], [-0.25, 0, Math.PI]);
+  // trimmed full beard. One shell over the lower face and sides, trimmed by two
+  // head-local planes into a clean diagonal cheek line: high at the sideburns,
+  // down to the mouth corners (an inverted V; the shell is kept below EITHER line).
+  const CHEEK = { ear: [0.8, -0.02], corner: [0.2, -0.3] };
+  const slope = (CHEEK.ear[1] - CHEEK.corner[1]) / (CHEEK.ear[0] - CHEEK.corner[0]);  // rise per unit toward the ear (> 0)
+  const yAt0 = CHEEK.ear[1] - slope * CHEEK.ear[0];                                     // where each line meets x = 0 (< mouth)
+  // Plane keeps points with normal·p + constant >= 0
+  const beardPlanesLocal = [
+    new THREE.Plane(new THREE.Vector3(-slope, -1, 0), yAt0).normalize(),  // left side:  keep y <= yAt0 - slope * x
+    new THREE.Plane(new THREE.Vector3(slope, -1, 0), yAt0).normalize(),   // right side: keep y <= yAt0 + slope * x
+  ];
+  const beardPlanes = beardPlanesLocal.map((p) => p.clone());
+  renderer.localClippingEnabled = true;
+  const beardCut = M.beard.clone();
+  beardCut.clippingPlanes = beardPlanes;
+  beardCut.clipIntersection = true;  // clip only where outside both planes
+  add(head, new THREE.SphereGeometry(1, 64, 32, -0.12, Math.PI + 0.24, Math.PI * 0.42, Math.PI * 0.56), beardCut, [0, -0.02, 0.0], [HX + 0.035, HY + 0.03, HZ + 0.05], [0.08, 0, 0]);
+  add(head, sphere, beardCut, [0, -0.78, 0.4], [0.38, 0.2, 0.3]);       // chin fullness
+  for (const s of [-1, 1]) add(head, sphere, M.beard, [0.775 * s, 0.03, -0.08], [0.05, 0.2, 0.1]);  // sideburns up to the fade
+  // keep the cut planes glued to the head as it turns
+  const syncBeard = () => {
+    head.updateWorldMatrix(true, false);
+    beardPlanes.forEach((p, i) => p.copy(beardPlanesLocal[i]).applyMatrix4(head.matrixWorld));
+  };
+  // moustache: one continuous bar over the upper lip, ends drooping into the beard
+  add(head, new THREE.CapsuleGeometry(0.048, 0.2, 4, 12), M.beard, [0, -0.255, 0.87], [1, 1, 0.7], [0.2, 0, Math.PI / 2]);
+  for (const s of [-1, 1]) add(head, sphere, M.beard, [0.15 * s, -0.29, 0.835], [0.06, 0.06, 0.05], [0, 0, 0.5 * s]);
+
+  // chin patch under the lower lip
+  add(head, sphere, M.beard, [0, -0.43, 0.855], [0.07, 0.05, 0.05]);
 
   /* ---------- Floating UI panels ---------- */
   const panel = (draw, w = 512, h = 340) => {
@@ -304,6 +344,7 @@ function init() {
     rings[1].rotation.z = -t * 0.08;
     particles.rotation.y = t * 0.03;
     camera.position.z = baseZ + sp * 2;
+    syncBeard();
     renderer.render(scene, camera);
   };
 
