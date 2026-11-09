@@ -452,3 +452,8 @@ body.menu-open .site-header { background: var(--bg); }
 /* inline link inside timeline cards */
 .tl-link { color: var(--orange); border-bottom: 1px solid var(--line-o); transition: border-color .2s; }
 .tl-link:hover { border-color: var(--orange); }
+
+/* current role marker in the timeline */
+.tl-now { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; padding: 4px 10px; border-radius: 20px; border: 1px solid var(--line-o); background: rgba(255, 100, 45, .1); font: 500 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--orange); vertical-align: middle; }
+.tl-now::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--orange); animation: pulse 2s ease-in-out infinite; }
+.tl-dot.is-now { background: var(--orange); }
