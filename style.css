@@ -338,6 +338,38 @@ body.menu-open .site-header { background: var(--bg); }
 .footer-cr { display: inline-flex; align-items: center; gap: 10px; color: var(--white); }
 .footer-cr img { width: 28px; height: 28px; }
 
+/* ---------- Platform build (Open Theatre) ---------- */
+.platform { border-top: 1px solid var(--line); background: radial-gradient(ellipse 50% 45% at 88% 8%, rgba(255, 100, 45, .09), transparent 70%), var(--bg); }
+.pf-lead { display: grid; gap: 24px; justify-items: start; max-width: 460px; }
+.pf-lead .sec-lead { max-width: none; }
+.pf-grid { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: clamp(36px, 5vw, 80px); align-items: start; }
+.pf-points { border-top: 1px solid var(--line); }
+.pf-points li { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; padding: 22px 0; border-bottom: 1px solid var(--line); }
+.pf-points b { font: 500 12px var(--mono); color: var(--orange); padding-top: 5px; }
+.pf-points h3 { font-size: 20px; font-weight: 700; letter-spacing: -.02em; }
+.pf-points p { margin-top: 4px; color: var(--grey); font-size: 15px; }
+.pf-stack { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 28px; }
+.pf-stack li { padding: 6px 12px; border-radius: 20px; border: 1px solid var(--line); font: 500 12px var(--mono); color: #cfccc6; }
+
+.arch { margin: 0; padding: clamp(22px, 2.6vw, 34px); border-radius: 18px; border: 1px solid var(--line); background: var(--charcoal); }
+.arch-cap { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; font: 500 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--orange); }
+.arch-cap::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 10px var(--orange); }
+.arch-tier { margin-bottom: 10px; font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--grey); }
+.arch-row { display: grid; gap: 10px; }
+.arch-row.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.arch-row.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.arch-node { padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); transition: border-color .25s; }
+.arch-node:hover { border-color: var(--line-o); }
+.arch-node b { display: block; font-size: 15px; font-weight: 700; letter-spacing: -.01em; line-height: 1.3; }
+.arch-node small { display: block; margin-top: 4px; font: 400 11px var(--mono); color: var(--grey); }
+.arch-node.core { border-color: var(--line-o); background: linear-gradient(160deg, rgba(255, 100, 45, .12), rgba(255, 100, 45, .02) 70%), var(--bg); }
+.arch-node.core b { font-size: 16px; }
+.arch-node.core ul { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.arch-node.core li { padding: 4px 9px; border-radius: 20px; border: 1px solid var(--line-o); font: 500 11px var(--mono); color: var(--orange-hot); }
+.arch-link { position: relative; display: flex; justify-content: center; height: 46px; margin: 4px 0 8px; }
+.arch-link::before { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: linear-gradient(var(--orange), rgba(255, 100, 45, .2)); }
+.arch-link span { position: relative; align-self: center; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--line-o); background: var(--charcoal); font: 500 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--orange-hot); }
+
 /* ---------- Reveal ---------- */
 .js [data-reveal] { opacity: 0; transform: translateY(30px); transition: opacity .9s var(--ease), transform .9s var(--ease), border-color .3s, translate .3s var(--ease); }
 .js [data-reveal].visible { opacity: 1; transform: none; }
@@ -355,6 +387,11 @@ body.menu-open .site-header { background: var(--bg); }
   .skill-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .lab-grid { grid-template-columns: 1fr; }
   .code-panel { max-height: 420px; }
+  .pf-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .arch-row.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .arch-node { padding: 12px 13px; }
 }
 
 @media (max-width: 960px) {
@@ -411,3 +448,7 @@ body.menu-open .site-header { background: var(--bg); }
   .js [data-reveal] { opacity: 1; transform: none; }
   .role-words span:not(:first-child) { display: none; }
 }
+
+/* inline link inside timeline cards */
+.tl-link { color: var(--orange); border-bottom: 1px solid var(--line-o); transition: border-color .2s; }
+.tl-link:hover { border-color: var(--orange); }
